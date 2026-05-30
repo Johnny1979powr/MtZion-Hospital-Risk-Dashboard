@@ -2,4 +2,270 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mt. Zion Hospital — Supply Chain Risk Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; color: #1e293b; }
+.topbar { background: #0f172a; color: #fff; padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; }
+.topbar h1 { font-size: 17px; font-weight: 600; }
+.badge-hosp { background: #dc2626; color: #fff; font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; margin-left: 10px; }
+.badge-pbi { background: #f59e0b; color: #1e293b; font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; margin-left: 6px; }
+.topbar-right { font-size: 11px; color: #94a3b8; }
+.topbar-right a { color: #7dd3fc; text-decoration: none; }
+.alert-bar { background: #fef2f2; border-bottom: 1px solid #fecaca; padding: 8px 28px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #991b1b; }
+.alert-dot { width: 8px; height: 8px; background: #dc2626; border-radius: 50%; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.toolbar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 10px 28px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar label { font-size: 12px; color: #64748b; }
+.toolbar select { font-size: 12px; padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; color: #1e293b; cursor: pointer; }
+.toolbar .reset { margin-left: auto; font-size: 12px; padding: 5px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer; color: #64748b; }
+.main { padding: 20px 28px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.kpi { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #e2e8f0; position: relative; overflow: hidden; }
+.kpi::after { content: ''; position: absolute; top: 0; right: 0; width: 3px; height: 100%; }
+.kpi.red::after { background: #dc2626; } .kpi.amber::after { background: #f59e0b; } .kpi.blue::after { background: #2563eb; } .kpi.green::after { background: #16a34a; } .kpi.purple::after { background: #7c3aed; } .kpi.teal::after { background: #0891b2; }
+.kpi-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+.kpi-value { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+.kpi-sub { font-size: 10px; color: #94a3b8; }
+.kpi.red .kpi-value { color: #dc2626; } .kpi.amber .kpi-value { color: #d97706; } .kpi.blue .kpi-value { color: #2563eb; } .kpi.green .kpi-value { color: #16a34a; } .kpi.purple .kpi-value { color: #7c3aed; } .kpi.teal .kpi-value { color: #0891b2; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+.row3 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 16px; }
+.card { background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0; }
+.card h3 { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+.card h3 span { font-size: 10px; color: #94a3b8; font-weight: 400; text-transform: none; letter-spacing: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead tr { background: #f8fafc; }
+th { padding: 8px 10px; text-align: left; font-weight: 600; color: #64748b; font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; cursor: pointer; white-space: nowrap; }
+th:hover { color: #2563eb; }
+td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f8faff; }
+.risk-badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.risk-critical { background: #fee2e2; color: #dc2626; } .risk-high { background: #fef3c7; color: #b45309; } .risk-medium { background: #dbeafe; color: #1d4ed8; } .risk-low { background: #dcfce7; color: #15803d; }
+.expiry-badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.exp-urgent { background: #fee2e2; color: #dc2626; } .exp-soon { background: #fef3c7; color: #b45309; } .exp-ok { background: #dcfce7; color: #15803d; }
+.lead-bar { display: flex; align-items: center; gap: 6px; }
+.lead-track { flex: 1; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+.lead-fill { height: 100%; border-radius: 3px; }
+.footer { background: #0f172a; color: #475569; text-align: center; padding: 12px; font-size: 11px; margin-top: 8px; }
+.footer a { color: #7dd3fc; text-decoration: none; }
+@media(max-width:900px){ .row2,.row3{grid-template-columns:1fr;} .kpi-grid{grid-template-columns:repeat(2,1fr);} .main{padding:12px;} }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div style="display:flex;align-items:center;">
+    <h1>⚕ Mt. Zion Hospital — Supply Chain Risk Dashboard</h1>
+    <span class="badge-hosp">HEALTHCARE</span>
+    <span class="badge-pbi">Power BI</span>
+  </div>
+  <div class="topbar-right">Built by <a href="https://www.linkedin.com/in/jonathan-williams-b763ab154">Jonathan Williams</a> · Power BI & Supply Chain Specialist</div>
+</div>
+<div class="alert-bar">
+  <div class="alert-dot"></div>
+  <strong id="alertText">Loading risk alerts...</strong>
+</div>
+<div class="toolbar">
+  <label>Category:</label>
+  <select id="fCat" onchange="applyFilters()">
+    <option value="All">All Categories</option>
+    <option value="Pharmaceuticals">Pharmaceuticals</option>
+    <option value="Surgical Supplies">Surgical Supplies</option>
+    <option value="PPE">PPE</option>
+    <option value="Medical Devices">Medical Devices</option>
+    <option value="Laboratory">Laboratory</option>
+  </select>
+  <label>Risk Level:</label>
+  <select id="fRisk" onchange="applyFilters()">
+    <option value="All">All Risk Levels</option>
+    <option value="Critical">Critical</option>
+    <option value="High">High</option>
+    <option value="Medium">Medium</option>
+    <option value="Low">Low</option>
+  </select>
+  <label>Vendor:</label>
+  <select id="fVendor" onchange="applyFilters()"></select>
+  <button class="reset" onclick="resetFilters()">↺ Reset</button>
+</div>
+<div class="main">
+  <div class="kpi-grid">
+    <div class="kpi blue"><div class="kpi-label">Total SKUs</div><div class="kpi-value" id="k-skus">—</div><div class="kpi-sub">Active items</div></div>
+    <div class="kpi green"><div class="kpi-label">Inventory Value</div><div class="kpi-value" id="k-val">—</div><div class="kpi-sub">Total at cost</div></div>
+    <div class="kpi red"><div class="kpi-label">Critical Risk Items</div><div class="kpi-value" id="k-crit">—</div><div class="kpi-sub">Immediate action</div></div>
+    <div class="kpi amber"><div class="kpi-label">% High Risk SKUs</div><div class="kpi-value" id="k-riskpct">—</div><div class="kpi-sub">Of total portfolio</div></div>
+    <div class="kpi red"><div class="kpi-label">At Risk Value</div><div class="kpi-value" id="k-atrisk">—</div><div class="kpi-sub">Exposed inventory</div></div>
+    <div class="kpi amber"><div class="kpi-label">Expiring &lt;90 Days</div><div class="kpi-value" id="k-exp90">—</div><div class="kpi-sub">Urgent expiry</div></div>
+    <div class="kpi teal"><div class="kpi-label">Avg Lead Time</div><div class="kpi-value" id="k-lead">—</div><div class="kpi-sub">Days from order</div></div>
+    <div class="kpi purple"><div class="kpi-label">Total Vendors</div><div class="kpi-value" id="k-vendors">—</div><div class="kpi-sub">Active suppliers</div></div>
+    <div class="kpi amber"><div class="kpi-label">Low Stock Items</div><div class="kpi-value" id="k-low">—</div><div class="kpi-sub">Below safety stock</div></div>
+    <div class="kpi red"><div class="kpi-label">High Lead Time</div><div class="kpi-value" id="k-hlt">—</div><div class="kpi-sub">&gt;30 days</div></div>
+  </div>
+  <div class="row2">
+    <div class="card"><h3>Risk Level Distribution <span>by SKU count</span></h3><div style="position:relative;height:200px;"><canvas id="cRisk"></canvas></div></div>
+    <div class="card"><h3>Inventory Value by Category <span>at cost</span></h3><div style="position:relative;height:200px;"><canvas id="cCat"></canvas></div></div>
+    <div class="card"><h3>Expiration Timeline <span>item count</span></h3><div style="position:relative;height:200px;"><canvas id="cExp"></canvas></div></div>
+  </div>
+  <div class="row3">
+    <div class="card"><h3>Vendor Lead Time Risk <span>avg days</span></h3><div style="position:relative;height:220px;"><canvas id="cVendor"></canvas></div></div>
+    <div class="card"><h3>Risk Score by Category</h3><div id="riskBreakdown" style="display:flex;flex-direction:column;gap:12px;margin-top:4px;"></div></div>
+  </div>
+  <div class="card">
+    <h3>Supply Chain Risk Register <span id="rowCount"></span></h3>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th onclick="sortTable('SKU_ID')">SKU ID ↕</th>
+          <th onclick="sortTable('Product_Name')">Product ↕</th>
+          <th onclick="sortTable('Category')">Category ↕</th>
+          <th onclick="sortTable('Vendor_Name')">Vendor ↕</th>
+          <th onclick="sortTable('Current_Stock')" style="text-align:right">Stock ↕</th>
+          <th onclick="sortTable('Unit_Cost')" style="text-align:right">Unit Cost ↕</th>
+          <th onclick="sortTable('Lead_Time_Days')" style="text-align:right">Lead Time ↕</th>
+          <th onclick="sortTable('expDays')">Expiry ↕</th>
+          <th onclick="sortTable('riskScore')" style="text-align:right">Risk Score ↕</th>
+          <th>Risk Level</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="footer">
+  Mt. Zion Hospital Supply Chain Risk Dashboard &nbsp;|&nbsp; Built with Power BI &nbsp;|&nbsp;
+  <a href="https://www.linkedin.com/in/jonathan-williams-b763ab154">Jonathan Williams</a> &nbsp;|&nbsp;
+  <a href="https://github.com/Johnny1979powr">GitHub Portfolio</a>
+</div>
+<script>
+const today=new Date();
+function addDays(n){const d=new Date(today);d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function daysFromNow(d){return Math.round((new Date(d)-today)/(1000*60*60*24));}
+const raw=[
+  {SKU_ID:'RX-001',Product_Name:'Amoxicillin 500mg',Category:'Pharmaceuticals',Unit_Cost:0.85,Current_Stock:2200,Lead_Time_Days:14,Vendor_Name:'MedPharm Supply',Expiration_Date:addDays(45)},
+  {SKU_ID:'RX-002',Product_Name:'Lisinopril 10mg',Category:'Pharmaceuticals',Unit_Cost:0.42,Current_Stock:800,Lead_Time_Days:21,Vendor_Name:'MedPharm Supply',Expiration_Date:addDays(280)},
+  {SKU_ID:'RX-003',Product_Name:'Metformin 1000mg',Category:'Pharmaceuticals',Unit_Cost:0.38,Current_Stock:150,Lead_Time_Days:35,Vendor_Name:'PharmaBridge LLC',Expiration_Date:addDays(75)},
+  {SKU_ID:'RX-004',Product_Name:'Morphine Sulfate 10mg',Category:'Pharmaceuticals',Unit_Cost:8.20,Current_Stock:60,Lead_Time_Days:42,Vendor_Name:'ControlRx Inc',Expiration_Date:addDays(30)},
+  {SKU_ID:'RX-005',Product_Name:'Vancomycin 1g IV',Category:'Pharmaceuticals',Unit_Cost:12.50,Current_Stock:95,Lead_Time_Days:28,Vendor_Name:'PharmaBridge LLC',Expiration_Date:addDays(120)},
+  {SKU_ID:'RX-006',Product_Name:'Insulin Glargine 100u/mL',Category:'Pharmaceuticals',Unit_Cost:28.00,Current_Stock:40,Lead_Time_Days:18,Vendor_Name:'BioMed Direct',Expiration_Date:addDays(60)},
+  {SKU_ID:'RX-007',Product_Name:'Epinephrine 1mg Auto-Inj',Category:'Pharmaceuticals',Unit_Cost:35.00,Current_Stock:25,Lead_Time_Days:45,Vendor_Name:'ControlRx Inc',Expiration_Date:addDays(22)},
+  {SKU_ID:'SX-001',Product_Name:'Surgical Gloves Nitrile L',Category:'Surgical Supplies',Unit_Cost:18.50,Current_Stock:320,Lead_Time_Days:10,Vendor_Name:'SurgiCo',Expiration_Date:addDays(720)},
+  {SKU_ID:'SX-002',Product_Name:'Disposable Scalpel #22',Category:'Surgical Supplies',Unit_Cost:2.10,Current_Stock:850,Lead_Time_Days:7,Vendor_Name:'SurgiCo',Expiration_Date:addDays(900)},
+  {SKU_ID:'SX-003',Product_Name:'Suture Vicryl 2-0',Category:'Surgical Supplies',Unit_Cost:45.00,Current_Stock:120,Lead_Time_Days:14,Vendor_Name:'MedSurg Partners',Expiration_Date:addDays(365)},
+  {SKU_ID:'SX-004',Product_Name:'Sterile Drape 18x26',Category:'Surgical Supplies',Unit_Cost:6.80,Current_Stock:55,Lead_Time_Days:21,Vendor_Name:'MedSurg Partners',Expiration_Date:addDays(800)},
+  {SKU_ID:'SX-005',Product_Name:'Electrosurgical Pencil',Category:'Surgical Supplies',Unit_Cost:4.25,Current_Stock:30,Lead_Time_Days:30,Vendor_Name:'SurgiCo',Expiration_Date:addDays(600)},
+  {SKU_ID:'PP-001',Product_Name:'N95 Respirator (50pk)',Category:'PPE',Unit_Cost:42.00,Current_Stock:180,Lead_Time_Days:8,Vendor_Name:'SafeShield Corp',Expiration_Date:addDays(500)},
+  {SKU_ID:'PP-002',Product_Name:'Isolation Gown Level 3',Category:'PPE',Unit_Cost:38.00,Current_Stock:95,Lead_Time_Days:12,Vendor_Name:'SafeShield Corp',Expiration_Date:addDays(600)},
+  {SKU_ID:'PP-003',Product_Name:'Face Shield Full Coverage',Category:'PPE',Unit_Cost:5.50,Current_Stock:400,Lead_Time_Days:5,Vendor_Name:'ProGuard Medical',Expiration_Date:addDays(1000)},
+  {SKU_ID:'PP-004',Product_Name:'Surgical Mask ASTM L2',Category:'PPE',Unit_Cost:14.00,Current_Stock:20,Lead_Time_Days:38,Vendor_Name:'ProGuard Medical',Expiration_Date:addDays(400)},
+  {SKU_ID:'MD-001',Product_Name:'IV Infusion Pump Alaris',Category:'Medical Devices',Unit_Cost:2800.00,Current_Stock:8,Lead_Time_Days:60,Vendor_Name:'BioMed Direct',Expiration_Date:addDays(3650)},
+  {SKU_ID:'MD-002',Product_Name:'Pulse Oximeter Clip',Category:'Medical Devices',Unit_Cost:45.00,Current_Stock:62,Lead_Time_Days:14,Vendor_Name:'MedTech Solutions',Expiration_Date:addDays(1800)},
+  {SKU_ID:'MD-003',Product_Name:'Blood Pressure Cuff Adult',Category:'Medical Devices',Unit_Cost:28.00,Current_Stock:35,Lead_Time_Days:10,Vendor_Name:'MedTech Solutions',Expiration_Date:addDays(2000)},
+  {SKU_ID:'MD-004',Product_Name:'Defibrillator Pads Adult',Category:'Medical Devices',Unit_Cost:95.00,Current_Stock:12,Lead_Time_Days:45,Vendor_Name:'BioMed Direct',Expiration_Date:addDays(85)},
+  {SKU_ID:'MD-005',Product_Name:'Ventilator Circuit Set',Category:'Medical Devices',Unit_Cost:38.00,Current_Stock:18,Lead_Time_Days:55,Vendor_Name:'BioMed Direct',Expiration_Date:addDays(180)},
+  {SKU_ID:'LB-001',Product_Name:'Blood Culture Bottle (50pk)',Category:'Laboratory',Unit_Cost:82.00,Current_Stock:45,Lead_Time_Days:10,Vendor_Name:'LabSource Inc',Expiration_Date:addDays(90)},
+  {SKU_ID:'LB-002',Product_Name:'Glucose Test Strips (100pk)',Category:'Laboratory',Unit_Cost:28.00,Current_Stock:280,Lead_Time_Days:7,Vendor_Name:'LabSource Inc',Expiration_Date:addDays(200)},
+  {SKU_ID:'LB-003',Product_Name:'Urine Culture Kit',Category:'Laboratory',Unit_Cost:4.80,Current_Stock:520,Lead_Time_Days:5,Vendor_Name:'DiagCo Partners',Expiration_Date:addDays(300)},
+  {SKU_ID:'LB-004',Product_Name:'COVID-19 Rapid Test (25pk)',Category:'Laboratory',Unit_Cost:65.00,Current_Stock:15,Lead_Time_Days:40,Vendor_Name:'DiagCo Partners',Expiration_Date:addDays(50)},
+  {SKU_ID:'LB-005',Product_Name:'Hematology QC Control Set',Category:'Laboratory',Unit_Cost:145.00,Current_Stock:8,Lead_Time_Days:21,Vendor_Name:'LabSource Inc',Expiration_Date:addDays(40)},
+];
+function calcRisk(d){
+  const expDays=daysFromNow(d.Expiration_Date);
+  let score=0;
+  if(d.Lead_Time_Days>40)score+=40;else if(d.Lead_Time_Days>25)score+=25;else if(d.Lead_Time_Days>15)score+=10;
+  if(expDays<30)score+=40;else if(expDays<90)score+=25;else if(expDays<180)score+=10;
+  if(d.Current_Stock<20)score+=20;else if(d.Current_Stock<60)score+=10;
+  const riskLevel=score>=60?'Critical':score>=35?'High':score>=15?'Medium':'Low';
+  const totalValue=d.Unit_Cost*d.Current_Stock;
+  const atRisk=(riskLevel==='Critical'||riskLevel==='High')?totalValue:0;
+  return{...d,expDays,riskScore:score,riskLevel,totalValue,atRisk};
+}
+const data=raw.map(calcRisk);
+let filtered=[...data],sortCol=null,sortDir=1;
+function fmt(n){if(n>=1000000)return'$'+(n/1000000).toFixed(2)+'M';if(n>=1000)return'$'+Math.round(n/1000)+'K';return'$'+Math.round(n).toLocaleString();}
+function populateVendors(){
+  const vendors=[...new Set(data.map(d=>d.Vendor_Name))].sort();
+  const sel=document.getElementById('fVendor');
+  sel.innerHTML='<option value="All">All Vendors</option>';
+  vendors.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);});
+}
+function applyFilters(){
+  const cat=document.getElementById('fCat').value,risk=document.getElementById('fRisk').value,vendor=document.getElementById('fVendor').value;
+  filtered=data.filter(d=>(cat==='All'||d.Category===cat)&&(risk==='All'||d.riskLevel===risk)&&(vendor==='All'||d.Vendor_Name===vendor));
+  if(sortCol)doSort(sortCol,false);
+  updateAll();
+}
+function resetFilters(){document.getElementById('fCat').value='All';document.getElementById('fRisk').value='All';document.getElementById('fVendor').value='All';applyFilters();}
+function updateAlert(){
+  const crit=filtered.filter(d=>d.riskLevel==='Critical').length;
+  const exp30=filtered.filter(d=>d.expDays<=30).length;
+  const hlt=filtered.filter(d=>d.Lead_Time_Days>40).length;
+  document.getElementById('alertText').textContent=`${crit} Critical risk items · ${exp30} items expiring within 30 days · ${hlt} items with lead time >40 days`;
+}
+function updateKPIs(){
+  const skus=filtered.length,val=filtered.reduce((a,d)=>a+d.totalValue,0),crit=filtered.filter(d=>d.riskLevel==='Critical').length;
+  const highRisk=filtered.filter(d=>d.riskLevel==='Critical'||d.riskLevel==='High').length;
+  const riskPct=skus>0?Math.round(highRisk/skus*100):0;
+  const atRisk=filtered.reduce((a,d)=>a+d.atRisk,0),exp90=filtered.filter(d=>d.expDays<=90&&d.expDays>0).length;
+  const avgLead=skus>0?Math.round(filtered.reduce((a,d)=>a+d.Lead_Time_Days,0)/skus):0;
+  const vendors=new Set(filtered.map(d=>d.Vendor_Name)).size;
+  const lowStock=filtered.filter(d=>d.Current_Stock<50).length,hlt=filtered.filter(d=>d.Lead_Time_Days>30).length;
+  document.getElementById('k-skus').textContent=skus;
+  document.getElementById('k-val').textContent=fmt(val);
+  document.getElementById('k-crit').textContent=crit;
+  document.getElementById('k-riskpct').textContent=riskPct+'%';
+  document.getElementById('k-atrisk').textContent=fmt(atRisk);
+  document.getElementById('k-exp90').textContent=exp90;
+  document.getElementById('k-lead').textContent=avgLead+' days';
+  document.getElementById('k-vendors').textContent=vendors;
+  document.getElementById('k-low').textContent=lowStock;
+  document.getElementById('k-hlt').textContent=hlt;
+}
+let cRisk,cCat,cExp,cVendor;
+function updateCharts(){
+  const riskLevels=['Critical','High','Medium','Low'],riskColors=['#dc2626','#f59e0b','#3b82f6','#16a34a'];
+  const riskCounts=riskLevels.map(r=>filtered.filter(d=>d.riskLevel===r).length);
+  const cats=['Pharmaceuticals','Surgical Supplies','PPE','Medical Devices','Laboratory'];
+  const catColors=['#7c3aed','#2563eb','#0891b2','#dc2626','#16a34a'];
+  const catVals=cats.map(c=>filtered.filter(d=>d.Category===c).reduce((a,d)=>a+d.totalValue,0));
+  const expCounts=[filtered.filter(d=>d.expDays>0&&d.expDays<=30).length,filtered.filter(d=>d.expDays>30&&d.expDays<=90).length,filtered.filter(d=>d.expDays>90&&d.expDays<=180).length,filtered.filter(d=>d.expDays>180).length];
+  const vendorsSorted=[...new Set(filtered.map(d=>d.Vendor_Name))].sort((a,b)=>{
+    const al=Math.round(filtered.filter(d=>d.Vendor_Name===a).reduce((x,d)=>x+d.Lead_Time_Days,0)/filtered.filter(d=>d.Vendor_Name===a).length);
+    const bl=Math.round(filtered.filter(d=>d.Vendor_Name===b).reduce((x,d)=>x+d.Lead_Time_Days,0)/filtered.filter(d=>d.Vendor_Name===b).length);
+    return bl-al;
+  });
+  const vendorLeads=vendorsSorted.map(v=>{const rows=filtered.filter(d=>d.Vendor_Name===v);return Math.round(rows.reduce((a,d)=>a+d.Lead_Time_Days,0)/rows.length);});
+  if(cRisk)cRisk.destroy();
+  cRisk=new Chart(document.getElementById('cRisk'),{type:'doughnut',data:{labels:riskLevels,datasets:[{data:riskCounts,backgroundColor:riskColors,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}}}}});
+  if(cCat)cCat.destroy();
+  cCat=new Chart(document.getElementById('cCat'),{type:'bar',data:{labels:cats.map(c=>c.split(' ')[0]),datasets:[{data:catVals,backgroundColor:catColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.raw)}}},scales:{y:{ticks:{callback:v=>fmt(v),font:{size:9}},grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  if(cExp)cExp.destroy();
+  cExp=new Chart(document.getElementById('cExp'),{type:'bar',data:{labels:['<30d','31-90d','91-180d','>180d'],datasets:[{data:expCounts,backgroundColor:['#dc2626','#f59e0b','#3b82f6','#16a34a'],borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{font:{size:9}},grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:9}}}}}});
+  if(cVendor)cVendor.destroy();
+  cVendor=new Chart(document.getElementById('cVendor'),{type:'bar',data:{labels:vendorsSorted,datasets:[{data:vendorLeads,backgroundColor:vendorLeads.map(v=>v>40?'#dc2626':v>25?'#f59e0b':'#16a34a'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+' days'}}},scales:{x:{ticks:{callback:v=>v+' days',font:{size:9}},grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  const rb=document.getElementById('riskBreakdown');rb.innerHTML='';
+  cats.forEach((c,i)=>{
+    const rows=filtered.filter(d=>d.Category===c);if(!rows.length)return;
+    const crit=rows.filter(d=>d.riskLevel==='Critical'||d.riskLevel==='High').length;
+    const pct=Math.round(crit/rows.length*100);
+    rb.innerHTML+=`<div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;"><span style="font-weight:600;color:${catColors[i]}">${c}</span><span style="font-size:10px;color:#64748b;">${crit}/${rows.length} · <strong style="color:${pct>=60?'#dc2626':pct>=30?'#d97706':'#16a34a'}">${pct}%</strong></span></div><div style="background:#e2e8f0;height:5px;border-radius:3px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${catColors[i]};border-radius:3px;"></div></div></div>`;
+  });
+}
+function expBadge(d){if(d<=30)return`<span class="expiry-badge exp-urgent">${d}d</span>`;if(d<=90)return`<span class="expiry-badge exp-soon">${d}d</span>`;return`<span class="expiry-badge exp-ok">${d}d</span>`;}
+function riskBadge(r){const cls=r==='Critical'?'risk-critical':r==='High'?'risk-high':r==='Medium'?'risk-medium':'risk-low';return`<span class="risk-badge ${cls}">${r}</span>`;}
+function updateTable(){
+  document.getElementById('rowCount').textContent=`(${filtered.length} items)`;
+  document.getElementById('tableBody').innerHTML=filtered.map(d=>`<tr><td style="font-family:monospace;font-size:10px;color:#64748b;">${d.SKU_ID}</td><td style="font-weight:500;">${d.Product_Name}</td><td style="color:#475569;font-size:10px;">${d.Category}</td><td style="font-size:10px;">${d.Vendor_Name}</td><td style="text-align:right;font-weight:${d.Current_Stock<30?'700':'400'};color:${d.Current_Stock<20?'#dc2626':d.Current_Stock<50?'#d97706':'#334155'}">${d.Current_Stock.toLocaleString()}</td><td style="text-align:right;">$${d.Unit_Cost.toFixed(2)}</td><td style="text-align:right;"><div class="lead-bar"><div class="lead-track"><div class="lead-fill" style="width:${Math.min(d.Lead_Time_Days/60*100,100)}%;background:${d.Lead_Time_Days>40?'#dc2626':d.Lead_Time_Days>25?'#f59e0b':'#16a34a'};"></div></div><span style="font-size:10px;min-width:28px;text-align:right;">${d.Lead_Time_Days}d</span></div></td><td>${expBadge(d.expDays)}</td><td style="text-align:right;font-weight:700;color:${d.riskScore>=60?'#dc2626':d.riskScore>=35?'#d97706':'#334155'}">${d.riskScore}</td><td>${riskBadge(d.riskLevel)}</td></tr>`).join('');
+}
+function doSort(col,toggle=true){
+  if(toggle){sortDir=sortCol===col?-sortDir:1;sortCol=col;}
+  filtered.sort((a,b)=>{const av=a[col],bv=b[col];return typeof av==='string'?av.localeCompare(bv)*sortDir:(av-bv)*sortDir;});
+  updateTable();
+}
+function sortTable(col){doSort(col);}
+function updateAll(){updateAlert();updateKPIs();updateCharts();updateTable();}
+populateVendors();
+updateAll();
+</script>
+</body>
+</html>
